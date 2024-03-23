@@ -2,9 +2,9 @@ wandb/
 
 *.csv
 
-notebooks/
+notebooks/*
 
-data/
+data/*
 
 .vscode/
 
