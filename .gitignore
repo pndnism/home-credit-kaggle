@@ -1,0 +1,11 @@
+wandb/
+
+*.csv
+
+notebooks/
+
+data/
+
+.vscode/
+
+.python-version
