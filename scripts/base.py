@@ -1,18 +1,19 @@
-import os
-from pathlib import Path
 import gc
+import os
+import pickle
+import warnings
+from datetime import datetime
 from glob import glob
+from pathlib import Path
+
+import lightgbm as lgb
 import pandas as pd
 import polars as pl
-from datetime import datetime
-import warnings
-from sklearn.model_selection import StratifiedGroupKFold
-from sklearn.metrics import roc_auc_score
-import lightgbm as lgb
 import wandb
-import pickle
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedGroupKFold
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 
 # start a new wandb run to track this script
@@ -33,9 +34,9 @@ wandb.init(
         "reg_alpha": 0.1,
         "reg_lambda": 10,
         "extra_trees": True,
-        'num_leaves': 64,
+        "num_leaves": 64,
         # "device": "gpu",
-    }
+    },
 )
 
 config = wandb.config
@@ -73,7 +74,9 @@ class Pipeline:
                     df = df.drop(col)
 
         for col in df.columns:
-            if (col not in ["target", "case_id", "WEEK_NUM"]) & (df[col].dtype == pl.String):
+            if (col not in ["target", "case_id", "WEEK_NUM"]) & (
+                df[col].dtype == pl.String
+            ):
                 freq = df[col].n_unique()
                 if (freq == 1) | (freq > 200):
                     df = df.drop(col)
@@ -110,11 +113,13 @@ class Aggregator:
         return expr_max
 
     def get_exprs(df):
-        exprs = Aggregator.num_expr(df) + \
-                Aggregator.date_expr(df) + \
-                Aggregator.str_expr(df) + \
-                Aggregator.other_expr(df) + \
-                Aggregator.count_expr(df)
+        exprs = (
+            Aggregator.num_expr(df)
+            + Aggregator.date_expr(df)
+            + Aggregator.str_expr(df)
+            + Aggregator.other_expr(df)
+            + Aggregator.count_expr(df)
+        )
 
         return exprs
 
@@ -143,12 +148,9 @@ def read_files(regex_path, depth=None):
 
 
 def feature_eng(df_base, depth_0, depth_1, depth_2):
-    df_base = (
-        df_base
-        .with_columns(
-            month_decision=pl.col("date_decision").dt.month(),
-            weekday_decision=pl.col("date_decision").dt.weekday(),
-        )
+    df_base = df_base.with_columns(
+        month_decision=pl.col("date_decision").dt.month(),
+        weekday_decision=pl.col("date_decision").dt.weekday(),
     )
     for i, df in enumerate(depth_0 + depth_1 + depth_2):
         df_base = df_base.join(df, how="left", on="case_id", suffix=f"_{i}")
@@ -191,7 +193,7 @@ data_store = {
     "depth_2": [
         read_file(TRAIN_DIR / "train_credit_bureau_b_2.parquet", 2),
         read_files(TRAIN_DIR / "train_credit_bureau_a_2_*.parquet", 2),
-    ]
+    ],
 }
 
 df_train = feature_eng(**data_store)
@@ -218,7 +220,7 @@ data_store = {
     "depth_2": [
         read_file(TEST_DIR / "test_credit_bureau_b_2.parquet", 2),
         read_files(TEST_DIR / "test_credit_bureau_a_2_*.parquet", 2),
-    ]
+    ],
 }
 
 df_test = feature_eng(**data_store)
@@ -238,10 +240,16 @@ del data_store
 gc.collect()
 
 print("Train is duplicated:\t", df_train["case_id"].duplicated().any())
-print("Train Week Range:\t", (df_train["WEEK_NUM"].min(), df_train["WEEK_NUM"].max()))
+print(
+    "Train Week Range:\t",
+    (df_train["WEEK_NUM"].min(), df_train["WEEK_NUM"].max()),
+)
 print()
 print("Test is duplicated:\t", df_test["case_id"].duplicated().any())
-print("Test Week Range:\t", (df_test["WEEK_NUM"].min(), df_test["WEEK_NUM"].max()))
+print(
+    "Test Week Range:\t",
+    (df_test["WEEK_NUM"].min(), df_test["WEEK_NUM"].max()),
+)
 
 X = df_train.drop(columns=["target", "case_id", "WEEK_NUM"])
 y = df_train["target"]
@@ -260,14 +268,16 @@ for idx_train, idx_valid in cv.split(X, y, groups=weeks):
 
     model = lgb.LGBMClassifier(**params)
     model.fit(
-        X_train, y_train,
+        X_train,
+        y_train,
         eval_set=[(X_valid, y_valid)],
-        callbacks=[lgb.log_evaluation(200), lgb.early_stopping(50)])
+        callbacks=[lgb.log_evaluation(200), lgb.early_stopping(50)],
+    )
     wandb.log({"best_iteration": model.best_iteration_})
     wandb.log({"best_score": model.best_score_})
     # modelをwandbへ保存
     wandb.save("model.pickle")
-    with open(os.path.join(wandb.run.dir, "model.pickle"), 'wb') as f:
+    with open(os.path.join(wandb.run.dir, "model.pickle"), "wb") as f:
         pickle.dump(model, f)
 
     fitted_models.append(model)
@@ -292,4 +302,6 @@ df_subm["score"] = lgb_pred
 
 df_subm.head()
 
-df_subm.to_csv(f"submission_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv", index=False)
+df_subm.to_csv(
+    f"submission_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv", index=False
+)
