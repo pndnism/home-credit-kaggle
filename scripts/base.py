@@ -42,6 +42,8 @@ wandb.init(
         "num_leaves": 64,
         # "device": "gpu",
     },
+    # 実験名（branch名と対応させることを推奨）
+    name=None,
 )
 
 config = wandb.config
