@@ -37,6 +37,8 @@ wandb.init(
         "num_leaves": 64,
         # "device": "gpu",
     },
+    # set the name of this run (recommended to set to the branch name)
+    name=None,
 )
 
 config = wandb.config
