@@ -1,6 +1,7 @@
 wandb/
 
 *.csv
+*.xlsx
 
 notebooks/*
 
@@ -9,3 +10,4 @@ data/*
 .vscode/
 
 .python-version
+

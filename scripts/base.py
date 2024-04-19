@@ -327,6 +327,7 @@ def main():
             mx = 0
             vx = g[0]
             for gg in g:
+                # TODO: nullが少ないやつを選ぶ方針でもいいかも.
                 n = df_train[gg].nunique()
                 if n > mx:
                     mx = n
